@@ -29,8 +29,10 @@ public class SpeciesService {
                        c.name AS category_name,
                        s.id AS species_id,
                        s.names,
+                       s.image_url,
                        s.description,
                        s.units AS species_units,
+                       sp.id as pack_id,
                        sp.units_per_pack,
                        sp.price_cents
                 FROM categories c
@@ -57,10 +59,11 @@ public class SpeciesService {
 
         Species species = speciesMap.computeIfAbsent(speciesId, id -> {
           try {
+            List<String> names = Arrays.asList(rs.getString("names").split(","));
             Species s = new Species();
             s.setId(id);
-            s.setNames(Arrays.asList(rs.getString("names").split(",")));
-            s.setImageUrl("");
+            s.setNames(names);
+            s.setImageUrl(rs.getString("image_url"));
             s.setDescription(rs.getString("description"));
             s.setUnits(rs.getInt("species_units"));
             category.getSpecies().add(s);
@@ -74,6 +77,7 @@ public class SpeciesService {
         int unitsPerPack = rs.getInt("units_per_pack");
         if (!rs.wasNull()) {
           SpeciesPack pack = new SpeciesPack();
+          pack.setId(rs.getInt("pack_id"));
           pack.setUnits(unitsPerPack);
           pack.setPrice(rs.getInt("price_cents"));
           species.getSpeciesPacks().add(pack);
