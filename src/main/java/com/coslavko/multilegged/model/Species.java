@@ -5,7 +5,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class Species {
-  private Integer id;
+  private int id;
   private String imageUrl;
   private List<String> names;
   private String description;
@@ -13,7 +13,7 @@ public class Species {
   private List<SpeciesPack> speciesPacks;
 
   public Species(
-      @JsonProperty("id") Integer id,
+      @JsonProperty("id") int id,
       @JsonProperty("imageUrl") String imageUrl,
       @JsonProperty("names") List<String> names,
       @JsonProperty("description") String description,
@@ -27,7 +27,7 @@ public class Species {
     this.speciesPacks = speciesPacks;
   }
 
-  public Integer getId() {
+  public int getId() {
     return id;
   }
 
@@ -47,27 +47,4 @@ public class Species {
     return units;
   }
 
-  public List<SpeciesPack> getSpeciesPacks() {
-    return speciesPacks;
-  }
-
-  public static class SpeciesPack {
-    private int units;
-    private int price;
-
-    public SpeciesPack(
-        @JsonProperty("units") int units,
-        @JsonProperty("price") int price) {
-      this.units = units;
-      this.price = price;
-    }
-
-    public int getUnits() {
-      return units;
-    }
-
-    public int getPrice() {
-      return price;
-    }
-  }
 }
