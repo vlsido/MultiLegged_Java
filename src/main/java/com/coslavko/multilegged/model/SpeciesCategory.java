@@ -1,27 +1,15 @@
 package com.coslavko.multilegged.model;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
 public class SpeciesCategory {
   private String name;
-  private List<Species> species;
+  private List<Species> species = new ArrayList<>();
 
-  // public Category(
-  // @JsonProperty("id") Integer id,
-  // @JsonProperty("name") String name) {
-  // this.id = id;
-  // this.name = name;
-  // }
-
-  public String getName() {
-    return name;
-  }
-
-  public List<Species> getSpecies() {
-    return species;
-  }
-
-  public void setName(String categoryName) {
-    name = categoryName;
-  }
 }
