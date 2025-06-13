@@ -66,7 +66,7 @@ public class SpeciesService {
             s.setImageUrl(rs.getString("image_url"));
             s.setDescription(rs.getString("description"));
             s.setUnits(rs.getInt("species_units"));
-            category.getSpecies().add(s);
+            category.getData().add(s);
 
             return s;
           } catch (SQLException e) {

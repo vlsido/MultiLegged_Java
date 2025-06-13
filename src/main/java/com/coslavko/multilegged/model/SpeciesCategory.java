@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class SpeciesCategory {
   private String name;
-  private List<Species> species = new ArrayList<>();
+  private List<Species> data = new ArrayList<>();
 
 }
