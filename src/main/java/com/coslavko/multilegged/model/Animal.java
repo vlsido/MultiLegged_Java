@@ -8,12 +8,13 @@ import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
-public class Species {
+public class Animal {
   private int id;
   private String imageUrl;
-  private List<String> names;
+  private String name;
   private String description;
   private int units;
-  private List<SpeciesPack> speciesPacks = new ArrayList<>();
+  private List<AnimalPrice> animalPrices = new ArrayList<>();
+  private String form;
 
 }

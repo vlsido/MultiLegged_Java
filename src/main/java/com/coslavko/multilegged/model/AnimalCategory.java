@@ -8,8 +8,8 @@ import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
-public class SpeciesCategory {
+public class AnimalCategory {
   private String name;
-  private List<Species> data = new ArrayList<>();
+  private List<Animal> data = new ArrayList<>();
 
 }
