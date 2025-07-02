@@ -53,22 +53,22 @@ public class AnimalsService {
         AnimalCategory category = categoryMap.computeIfAbsent(categoryName, c -> {
           AnimalCategory aCategory = new AnimalCategory();
 
-          aCategory.setName(c);
+          aCategory.setCategory(c);
 
           return aCategory;
         });
 
         Animal animal = animalMap.computeIfAbsent(speciesId, id -> {
           try {
-            Animal s = new Animal();
-            s.setId(id);
-            s.setName(rs.getString("name"));
-            s.setImageUrl(rs.getString("image_url"));
-            s.setDescription(rs.getString("description"));
-            s.setUnits(rs.getInt("animal_units"));
-            category.getData().add(s);
+            Animal a = new Animal();
+            a.setId(id);
+            a.setName(rs.getString("name"));
+            a.setImageUrl(rs.getString("image_url"));
+            a.setDescription(rs.getString("description"));
+            a.setUnits(rs.getInt("animal_units"));
+            category.getAnimals().add(a);
 
-            return s;
+            return a;
           } catch (SQLException e) {
             throw new RuntimeException("Failed to map species from result set", e);
           }

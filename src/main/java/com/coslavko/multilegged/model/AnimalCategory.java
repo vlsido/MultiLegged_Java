@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class AnimalCategory {
-  private String name;
-  private List<Animal> data = new ArrayList<>();
+  private String category;
+  private List<Animal> animals = new ArrayList<>();
 
 }
