@@ -29,6 +29,10 @@ public class AnimalsService {
                        a.id AS animal_id,
                        a.name,
                        a.image_url,
+                       a.origin,
+                       a.size,
+                       a.humidity,
+                       a.temperature,
                        a.description,
                        a.units AS animal_units,
                        a.form,
@@ -64,7 +68,12 @@ public class AnimalsService {
             a.setId(id);
             a.setName(rs.getString("name"));
             a.setImageUrl(rs.getString("image_url"));
+            a.setOrigin(rs.getString("origin"));
+            a.setSize(rs.getString("size"));
+            a.setHumidity(rs.getString("humidity"));
+            a.setTemperature(rs.getString("temperature"));
             a.setDescription(rs.getString("description"));
+            a.setForm(rs.getString("form"));
             a.setUnits(rs.getInt("animal_units"));
             category.getAnimals().add(a);
 
@@ -75,15 +84,20 @@ public class AnimalsService {
         });
 
         if (!rs.wasNull()) {
-          int cents_per_unit = rs.getInt("cents_per_unit");
-          int min_quantity = rs.getInt("min_quantity");
-          int max_quantity = rs.getInt("max_quantity");
+          int minQuantity = rs.getInt("min_quantity");
+          Integer maxQuantity = null;
+          int maxQuantityValue = rs.getInt("max_quantity");
+          if (!rs.wasNull()) {
+            maxQuantity = maxQuantityValue;
+          }
+
+          int centsPerUnit = rs.getInt("cents_per_unit");
 
           AnimalPrice price = new AnimalPrice();
           price.setId(rs.getInt("price_id"));
-          price.setMin_quantity(min_quantity);
-          price.setMax_quantity(max_quantity);
-          price.setCents_per_unit(cents_per_unit);
+          price.setMinQuantity(minQuantity);
+          price.setMaxQuantity(maxQuantity);
+          price.setCentsPerUnit(centsPerUnit);
           animal.getAnimalPrices().add(price);
         }
       }

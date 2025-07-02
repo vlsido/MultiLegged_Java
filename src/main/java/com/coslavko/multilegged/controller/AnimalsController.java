@@ -17,7 +17,7 @@ public class AnimalsController {
     this.animalsService = animalsService;
   }
 
-  @GetMapping("/api/species")
+  @GetMapping("/api/animals")
   public List<AnimalCategory> species() {
 
     return animalsService.fetchSpecies();
