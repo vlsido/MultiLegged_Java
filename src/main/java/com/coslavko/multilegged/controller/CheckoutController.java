@@ -1,6 +1,7 @@
 package com.coslavko.multilegged.controller;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.coslavko.multilegged.dto.CheckoutDTO;
 import com.coslavko.multilegged.service.CheckoutService;
 
 @RestController
@@ -22,10 +24,11 @@ public class CheckoutController {
   }
 
   @PostMapping("/api/create-checkout-session")
-  public ResponseEntity<Map<String, String>> createCheckout() {
+  public ResponseEntity<Map<String, String>> createCheckout(@RequestBody List<CheckoutDTO> checkoutDTOs) {
     Map<String, String> response = new HashMap<>();
     try {
-      response = checkoutService.createCheckoutSession();
+      checkoutService.syncStripeProducts(checkoutDTOs);
+      response = checkoutService.createCheckoutSession(checkoutDTOs);
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       response.put("error", "Failed to create checkout session");
