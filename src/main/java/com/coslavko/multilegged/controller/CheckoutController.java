@@ -16,7 +16,6 @@ import com.coslavko.multilegged.service.CheckoutService;
 
 @RestController
 public class CheckoutController {
-
   private final CheckoutService checkoutService;
 
   public CheckoutController(CheckoutService checkoutService) {
