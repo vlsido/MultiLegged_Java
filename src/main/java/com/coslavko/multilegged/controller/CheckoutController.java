@@ -26,7 +26,6 @@ public class CheckoutController {
   public ResponseEntity<Map<String, String>> createCheckout(@RequestBody List<CheckoutDTO> checkoutDTOs) {
     Map<String, String> response = new HashMap<>();
     try {
-      checkoutService.syncStripeProducts(checkoutDTOs);
       response = checkoutService.createCheckoutSession(checkoutDTOs);
       return ResponseEntity.ok(response);
     } catch (Exception e) {

@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,16 +13,9 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import com.coslavko.multilegged.dto.CheckoutDTO;
-import com.coslavko.multilegged.model.StoreProduct;
+import com.coslavko.multilegged.model.CheckoutProduct;
 import com.stripe.exception.StripeException;
-import com.stripe.model.Price;
-import com.stripe.model.PriceCollection;
-import com.stripe.model.Product;
 import com.stripe.model.checkout.Session;
-import com.stripe.param.PriceCreateParams;
-import com.stripe.param.PriceListParams;
-import com.stripe.param.ProductCreateParams;
-import com.stripe.param.ProductUpdateParams;
 import com.stripe.param.checkout.SessionCreateParams;
 
 @Service
@@ -36,7 +30,7 @@ public class CheckoutService {
     this.jdbcTemplate = jdbcTemplate;
   }
 
-  public void syncStripeProducts(List<CheckoutDTO> checkoutDTOs) throws Exception {
+  public List<CheckoutProduct> getProducts(List<CheckoutDTO> checkoutDTOs) throws Exception {
     String sql = """
                    SELECT
                            a.name,
@@ -60,205 +54,68 @@ public class CheckoutService {
 
     Map<String, Object> params = Map.of("ids", animalIds);
 
-    List<Map<String, Object>> prices = new ArrayList<Map<String, Object>>();
+    List<Map<String, Object>> prices = jdbcTemplate.query(sql, params, (rs, rowNum) -> {
+      Map<String, Object> price = new LinkedHashMap<>();
 
-    jdbcTemplate.query(sql, params, rs -> {
+      int animalId = rs.getInt("animal_id");
+      String name = rs.getString("name") + "(" + rs.getString("form") + ")";
+      int centsPerUnit = rs.getInt("cents_per_unit");
 
-      while (rs.next()) {
-        Map<String, Object> price = new LinkedHashMap<>();
+      int minQuantity = rs.getInt("min_quantity");
 
-        int animalId = rs.getInt("animal_id");
-        String name = rs.getString("name") + "(" + rs.getString("form") + ")";
-        int centsPerUnit = rs.getInt("cents_per_unit");
-
-        int minQuantity = rs.getInt("min_quantity");
-
-        Integer maxQuantity = null;
-        int maxQuantityValue = rs.getInt("max_quantity");
-        if (!rs.wasNull()) {
-          maxQuantity = maxQuantityValue;
-        }
-
-        price.put("animal_id", animalId);
-        price.put("name", name);
-        price.put("cents_per_unit", centsPerUnit);
-        price.put("max_quantity", maxQuantity);
-
-        prices.add(price);
+      Integer maxQuantity = null;
+      int maxQuantityValue = rs.getInt("max_quantity");
+      if (!rs.wasNull()) {
+        maxQuantity = maxQuantityValue;
       }
-      return;
+
+      price.put("animal_id", animalId);
+      price.put("name", name);
+      price.put("cents_per_unit", centsPerUnit);
+      price.put("min_quantity", minQuantity);
+      price.put("max_quantity", maxQuantity);
+
+      return price;
     });
 
-    Map<Integer, StoreProduct> storeProductMap = new LinkedHashMap<>();
+    Map<Integer, CheckoutProduct> checkoutProductMap = new LinkedHashMap<>();
 
     for (Map<String, Object> price : prices) {
       Integer animalId = (Integer) price.get("animal_id");
       String name = (String) price.get("name");
       int centsPerUnit = (Integer) price.get("cents_per_unit");
-      Integer maxQuantity = (Integer) price.get("max_quantity");
+      int minQuantity = (Integer) price.get("min_quantity");
 
-      StoreProduct storeProduct = storeProductMap.get(animalId);
+      CheckoutProduct checkoutProduct = checkoutProductMap.get(animalId);
 
-      if (storeProduct == null) {
-        storeProduct = new StoreProduct();
-        storeProduct.setStoreProductId(animalId);
-        storeProduct.setName(name);
-        storeProduct.setTiers(new ArrayList<>());
-        storeProductMap.put(animalId, storeProduct);
-      }
+      if (checkoutProduct == null) {
+        Optional<CheckoutDTO> matchingProduct = checkoutDTOs.stream()
+            .filter(item -> item.getAnimalId() == animalId)
+            .findFirst();
 
-      StoreProduct.Tier tier = new StoreProduct.Tier();
-      tier.setCentsPerUnit(centsPerUnit);
-      tier.setMaxQuantity(maxQuantity);
-
-      storeProduct.getTiers().add(tier);
-    }
-
-    List<StoreProduct> storeProducts = new ArrayList<>(storeProductMap.values());
-
-    for (StoreProduct storeProduct : storeProducts) {
-      try {
-        Product stripeProduct = createOrUpdateProduct(storeProduct.getStoreProductId(), storeProduct.getName());
-
-        createOrUpdatePrice(stripeProduct, storeProduct);
-      } catch (StripeException e) {
-        throw e;
-      }
-    }
-  }
-
-  private Product createOrUpdateProduct(Integer storeProductId, String name) throws StripeException {
-    try {
-      Product product = Product.retrieve("prod_" + storeProductId);
-
-      Product updatedProduct = product.update(
-          ProductUpdateParams.builder()
-              .setName(name)
-              .build());
-      return updatedProduct;
-
-    } catch (StripeException e) {
-      if (e.getCode().equals("resource_missing")) {
-        return Product.create(
-            ProductCreateParams.builder()
-                .setId("prod_" + storeProductId)
-                .setName(name)
-                .build());
-      }
-      throw e;
-    } catch (Exception e) {
-      System.out.println("Another problem occurred, maybe unrelated to Stripe.");
-      throw e;
-    }
-  }
-
-  private void createOrUpdatePrice(Product stripeProduct, StoreProduct storeProduct) throws StripeException {
-    String productId = stripeProduct.getId();
-    String defaultPriceId = stripeProduct.getDefaultPrice();
-
-    if (defaultPriceId == null) {
-      createTieredPrice(productId, storeProduct);
-    }
-  }
-
-  private Price findPrice(String productId) throws StripeException {
-
-    PriceListParams params = PriceListParams.builder()
-        .setProduct(productId)
-        .setActive(true)
-        .build();
-
-    PriceCollection prices = Price.list(params);
-
-    for (Price price : prices.getData()) {
-      if (price.getType().equals("one_time") &&
-          price.getBillingScheme().equals("tiered") &&
-          price.getTiersMode().equals("volume")) {
-        return price;
-      }
-    }
-
-    return null;
-  }
-
-  private Price createTieredPrice(String productId, StoreProduct storeProduct) throws StripeException {
-    try {
-      List<PriceCreateParams.Tier> stripeTiers = new ArrayList<>();
-      List<StoreProduct.Tier> tiers = storeProduct.getTiers();
-
-      for (int i = 0; i < tiers.size(); i++) {
-        StoreProduct.Tier tier = tiers.get(i);
-        PriceCreateParams.Tier.Builder tBuilder = PriceCreateParams.Tier.builder()
-            .setUnitAmount((long) tier.getCentsPerUnit());
-
-        // If this is the last tier, set up_to to "inf" (infinity)
-        if (i == tiers.size() - 1) {
-          // For the last tier, we need to explicitly use "inf" string
-          tBuilder.putExtraParam("up_to", "inf");
-        } else {
-          // For all other tiers, we need a numeric up_to
-          if (tier.getMaxQuantity() == null) {
-            throw new IllegalArgumentException("All tiers except the last must have a maxQuantity");
-          }
-          tBuilder.setUpTo((long) tier.getMaxQuantity());
+        if (matchingProduct.isEmpty()) {
+          throw new Exception("AnimalId is not found in checkoutDTOs: " + animalId);
         }
 
-        stripeTiers.add(tBuilder.build());
+        int quantity = matchingProduct.get().getQuantity();
+
+        checkoutProduct = new CheckoutProduct();
+        checkoutProduct.setProductId(animalId);
+        checkoutProduct.setName(name);
+        checkoutProduct.setQuantity(quantity);
+        checkoutProductMap.put(animalId, checkoutProduct);
       }
 
-      PriceCreateParams params = PriceCreateParams.builder()
-          .setProduct(productId)
-          .setCurrency("eur")
-          .setTiersMode(PriceCreateParams.TiersMode.VOLUME)
-          .addAllTier(stripeTiers)
-          .setBillingScheme(PriceCreateParams.BillingScheme.TIERED)
-          .setActive(true)
-          .build();
+      if (checkoutProduct.getQuantity() >= minQuantity) {
+        checkoutProduct.setCentsPerUnit(centsPerUnit);
+      }
 
-      return Price.create(params);
-    } catch (Exception e) {
-      System.err.println("Failed to create tiered price:");
-      System.err.println("Product ID: " + productId);
-      System.err.println("Tiers: " + storeProduct.getTiers());
-      e.printStackTrace();
-      throw e;
     }
+
+    List<CheckoutProduct> checkoutProducts = new ArrayList<>(checkoutProductMap.values());
+
+    return checkoutProducts;
   }
-  // private Price createTieredPrice(String productId, StoreProduct storeProduct)
-  // throws StripeException {
-  // try {
-  // List<PriceCreateParams.Tier> stripeTiers = new ArrayList<>();
-  //
-  // for (StoreProduct.Tier tier : storeProduct.getTiers()) {
-  // PriceCreateParams.Tier.Builder tBuilder = PriceCreateParams.Tier.builder()
-  // .setUnitAmount((long) tier.getCentsPerUnit());
-  //
-  // if (tier.getMaxQuantity() != null) {
-  // tBuilder.setUpTo((long) tier.getMaxQuantity());
-  // } else {
-  // tBuilder.setUpTo("inf");
-  // }
-  //
-  // stripeTiers.add(tBuilder.build());
-  // }
-  //
-  // PriceCreateParams params = PriceCreateParams.builder()
-  // .setProduct(productId)
-  // .setCurrency("eur")
-  // .setTiersMode(PriceCreateParams.TiersMode.VOLUME)
-  // .addAllTier(stripeTiers)
-  // .setBillingScheme(PriceCreateParams.BillingScheme.TIERED)
-  // .build();
-  //
-  // return Price.create(params);
-  // } catch (Exception e) {
-  // System.err.println("Failed to create tiered price:");
-  // System.err.println("Product ID: " + productId);
-  // System.err.println("Tiers: " + storeProduct.getTiers());
-  // e.printStackTrace();
-  // throw e;
-  // }
-  // }
 
   public Map<String, String> createCheckoutSession(List<CheckoutDTO> checkoutDTOs) throws Exception {
     SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
@@ -266,18 +123,23 @@ public class CheckoutService {
         .setMode(SessionCreateParams.Mode.PAYMENT)
         .setReturnUrl(domainUrls[0] + "/cart/return?session_id={CHECKOUT_SESSION_ID}");
 
-    for (CheckoutDTO item : checkoutDTOs) {
-      Price tieredPrice = findPrice("prod_" + item.getAnimalId());
+    List<CheckoutProduct> checkoutProducts = getProducts(checkoutDTOs);
 
-      if (tieredPrice == null) {
-        throw new Exception("Couldn't find price");
-      }
+    for (CheckoutProduct item : checkoutProducts) {
+      SessionCreateParams.LineItem lineItem = SessionCreateParams.LineItem.builder()
+          .setQuantity((long) item.getQuantity())
+          .setPriceData(
+              SessionCreateParams.LineItem.PriceData.builder()
+                  .setCurrency("eur")
+                  .setUnitAmount((long) item.getCentsPerUnit())
+                  .setProductData(
+                      SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                          .setName(item.getName())
+                          .build())
+                  .build())
+          .build();
 
-      paramsBuilder.addLineItem(
-          SessionCreateParams.LineItem.builder()
-              .setQuantity((long) item.getQuantity())
-              .setPrice(tieredPrice.getId())
-              .build());
+      paramsBuilder.addLineItem(lineItem);
     }
 
     Session session = Session.create(paramsBuilder.build());
