@@ -18,7 +18,7 @@ public class ContactController {
   }
 
   @PostMapping("/api/contact")
-  public ResponseEntity<String> sendContactMessage(@RequestBody ContactDTO contact) {
+  public ResponseEntity<String> contact(@RequestBody ContactDTO contact) {
     try {
       emailService.sendContactEmail(contact);
       return ResponseEntity.ok("Message sent");

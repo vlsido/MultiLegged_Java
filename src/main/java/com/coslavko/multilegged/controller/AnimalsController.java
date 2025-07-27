@@ -18,9 +18,9 @@ public class AnimalsController {
   }
 
   @GetMapping("/api/animals")
-  public List<AnimalCategory> species() {
+  public List<AnimalCategory> animals() {
 
-    return animalsService.fetchSpecies();
+    return animalsService.fetchAnimals();
 
   }
 }

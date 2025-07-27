@@ -23,7 +23,7 @@ public class CheckoutController {
   }
 
   @PostMapping("/api/create-checkout-session")
-  public ResponseEntity<Map<String, String>> createCheckout(@RequestBody List<CheckoutDTO> checkoutDTOs) {
+  public ResponseEntity<Map<String, String>> createCheckoutSession(@RequestBody List<CheckoutDTO> checkoutDTOs) {
     Map<String, String> response = new HashMap<>();
     try {
       response = checkoutService.createCheckoutSession(checkoutDTOs);
@@ -35,7 +35,7 @@ public class CheckoutController {
   }
 
   @GetMapping("/api/session-status")
-  public ResponseEntity<Map<String, String>> checkoutStatus(@RequestParam("session_id") String session_id) {
+  public ResponseEntity<Map<String, String>> sessionStatus(@RequestParam("session_id") String session_id) {
     Map<String, String> response = new HashMap<>();
     try {
       response = checkoutService.getSessionStatus(session_id);

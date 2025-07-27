@@ -123,6 +123,35 @@ public class CheckoutService {
         .setMode(SessionCreateParams.Mode.PAYMENT)
         .setReturnUrl(domainUrls[0] + "/cart/return?session_id={CHECKOUT_SESSION_ID}");
 
+    paramsBuilder.addShippingOption(
+        SessionCreateParams.ShippingOption.builder()
+            .setShippingRateData(
+                SessionCreateParams.ShippingOption.ShippingRateData.builder()
+                    .setType(SessionCreateParams.ShippingOption.ShippingRateData.Type.FIXED_AMOUNT)
+                    .setFixedAmount(
+                        SessionCreateParams.ShippingOption.ShippingRateData.FixedAmount.builder()
+                            .setAmount(199L)
+                            .setCurrency("eur")
+                            .build())
+                    .setDisplayName("Standard Shipping")
+                    .setDeliveryEstimate(
+                        SessionCreateParams.ShippingOption.ShippingRateData.DeliveryEstimate.builder()
+                            .setMinimum(
+                                SessionCreateParams.ShippingOption.ShippingRateData.DeliveryEstimate.Minimum.builder()
+                                    .setUnit(
+                                        SessionCreateParams.ShippingOption.ShippingRateData.DeliveryEstimate.Minimum.Unit.BUSINESS_DAY)
+                                    .setValue(3L)
+                                    .build())
+                            .setMaximum(
+                                SessionCreateParams.ShippingOption.ShippingRateData.DeliveryEstimate.Maximum.builder()
+                                    .setUnit(
+                                        SessionCreateParams.ShippingOption.ShippingRateData.DeliveryEstimate.Maximum.Unit.BUSINESS_DAY)
+                                    .setValue(5L)
+                                    .build())
+                            .build())
+                    .build())
+            .build());
+
     List<CheckoutProduct> checkoutProducts = getProducts(checkoutDTOs);
 
     for (CheckoutProduct item : checkoutProducts) {

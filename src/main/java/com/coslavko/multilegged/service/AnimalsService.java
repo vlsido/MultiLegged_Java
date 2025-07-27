@@ -22,7 +22,7 @@ public class AnimalsService {
     this.jdbcTemplate = jdbcTemplate;
   }
 
-  public List<AnimalCategory> fetchSpecies() {
+  public List<AnimalCategory> fetchAnimals() {
     String sql = """
                 SELECT
                        c.name AS category_name,
