@@ -1,7 +1,7 @@
 package com.coslavko.multilegged.service;
 
-import java.net.http.HttpClient;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -43,7 +43,10 @@ public class ShippingService {
       location.setName((String) item.get("companyName"));
       location.setCountryCode((String) item.get("countryCode"));
       return location;
-    }).toList();
+    }).sorted(Comparator.comparing(location -> {
+      String[] parts = location.getName().split("\\s+");
+      return parts.length > 1 ? parts[1] : "";
+    })).toList();
 
     dto.setLocations(locations);
 

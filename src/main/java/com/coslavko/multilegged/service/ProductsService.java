@@ -10,23 +10,23 @@ import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
-import com.coslavko.multilegged.model.AnimalCategory;
-import com.coslavko.multilegged.model.AnimalPrice;
-import com.coslavko.multilegged.model.Animal;
+import com.coslavko.multilegged.model.Product;
+import com.coslavko.multilegged.model.ProductCategory;
+import com.coslavko.multilegged.model.ProductPrice;
 
 @Service
-public class AnimalsService {
+public class ProductsService {
   private final JdbcTemplate jdbcTemplate;
 
-  public AnimalsService(JdbcTemplate jdbcTemplate) {
+  public ProductsService(JdbcTemplate jdbcTemplate) {
     this.jdbcTemplate = jdbcTemplate;
   }
 
-  public List<AnimalCategory> fetchAnimals() {
+  public List<ProductCategory> fetchProducts() {
     String sql = """
                 SELECT
                        c.name AS category_name,
-                       a.id AS animal_id,
+                       a.id AS product_id,
                        a.name,
                        a.image_url,
                        a.origin,
@@ -34,37 +34,37 @@ public class AnimalsService {
                        a.humidity,
                        a.temperature,
                        a.description,
-                       a.units AS animal_units,
+                       a.units AS product_units,
                        a.form,
                        ap.id as price_id,
                        ap.cents_per_unit,
                        ap.min_quantity,
                        ap.max_quantity
                 FROM categories c
-                JOIN animals a ON a.category_id = c.id
-                LEFT JOIN animal_prices ap ON ap.animal_id = a.id
+                JOIN products a ON a.category_id = c.id
+                LEFT JOIN product_prices ap ON ap.product_id = a.id
                 ORDER BY c.name, a.id;
         """;
 
     return jdbcTemplate.query(sql, rs -> {
-      Map<String, AnimalCategory> categoryMap = new LinkedHashMap<>();
-      Map<Integer, Animal> animalMap = new HashMap<>();
+      Map<String, ProductCategory> categoryMap = new LinkedHashMap<>();
+      Map<Integer, Product> productMap = new HashMap<>();
 
       while (rs.next()) {
         String categoryName = rs.getString("category_name");
-        Integer speciesId = rs.getInt("animal_id");
+        Integer speciesId = rs.getInt("product_id");
 
-        AnimalCategory category = categoryMap.computeIfAbsent(categoryName, c -> {
-          AnimalCategory aCategory = new AnimalCategory();
+        ProductCategory category = categoryMap.computeIfAbsent(categoryName, c -> {
+          ProductCategory aCategory = new ProductCategory();
 
           aCategory.setCategory(c);
 
           return aCategory;
         });
 
-        Animal animal = animalMap.computeIfAbsent(speciesId, id -> {
+        Product product = productMap.computeIfAbsent(speciesId, id -> {
           try {
-            Animal a = new Animal();
+            Product a = new Product();
             a.setId(id);
             a.setName(rs.getString("name"));
             a.setImageUrl(rs.getString("image_url"));
@@ -74,8 +74,8 @@ public class AnimalsService {
             a.setTemperature(rs.getString("temperature"));
             a.setDescription(rs.getString("description"));
             a.setForm(rs.getString("form"));
-            a.setUnits(rs.getInt("animal_units"));
-            category.getAnimals().add(a);
+            a.setUnits(rs.getInt("product_units"));
+            category.getProducts().add(a);
 
             return a;
           } catch (SQLException e) {
@@ -93,12 +93,12 @@ public class AnimalsService {
 
           int centsPerUnit = rs.getInt("cents_per_unit");
 
-          AnimalPrice price = new AnimalPrice();
+          ProductPrice price = new ProductPrice();
           price.setId(rs.getInt("price_id"));
           price.setMinQuantity(minQuantity);
           price.setMaxQuantity(maxQuantity);
           price.setCentsPerUnit(centsPerUnit);
-          animal.getAnimalPrices().add(price);
+          product.getProductPrices().add(price);
         }
       }
 

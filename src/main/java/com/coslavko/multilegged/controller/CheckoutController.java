@@ -1,7 +1,6 @@
 package com.coslavko.multilegged.controller;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
@@ -23,10 +22,10 @@ public class CheckoutController {
   }
 
   @PostMapping("/api/create-checkout-session")
-  public ResponseEntity<Map<String, String>> createCheckoutSession(@RequestBody List<CheckoutDTO> checkoutDTOs) {
+  public ResponseEntity<Map<String, String>> createCheckoutSession(@RequestBody CheckoutDTO checkoutDTO) {
     Map<String, String> response = new HashMap<>();
     try {
-      response = checkoutService.createCheckoutSession(checkoutDTOs);
+      response = checkoutService.createCheckoutSession(checkoutDTO);
       return ResponseEntity.ok(response);
     } catch (Exception e) {
       response.put("error", "Failed to create checkout session");

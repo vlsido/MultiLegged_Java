@@ -30,34 +30,42 @@ public class CheckoutService {
     this.jdbcTemplate = jdbcTemplate;
   }
 
-  public List<CheckoutProduct> getProducts(List<CheckoutDTO> checkoutDTOs) throws Exception {
+  public Boolean lockProducts(CheckoutDTO checkoutDTO) {
+    String sql = """
+        INSERT INTO orders
+        """;
+
+    return true;
+  }
+
+  public List<CheckoutProduct> getProducts(CheckoutDTO checkoutDTO) throws Exception {
     String sql = """
                    SELECT
                            a.name,
-                           a.id as animal_id,
+                           a.id as product_id,
                            ap.id as price_id,
                            ap.cents_per_unit,
                            ap.min_quantity,
                            ap.max_quantity,
                            a.units,
                            a.form
-                    FROM animal_prices ap
-                    JOIN animals a ON a.id = ap.animal_id
-                    WHERE a.id IN (:ids)
-                    ORDER BY price_id;
+                   FROM product_prices ap
+                   JOIN products a ON a.id = ap.product_id
+                   WHERE a.id IN (:ids)
+                   ORDER BY price_id;
         """;
 
-    List<Integer> animalIds = checkoutDTOs.stream()
-        .map(CheckoutDTO::getAnimalId)
+    List<Integer> productIds = checkoutDTO.getItems().stream()
+        .map(CheckoutDTO.Item::getProductId)
         .distinct()
         .toList();
 
-    Map<String, Object> params = Map.of("ids", animalIds);
+    Map<String, Object> params = Map.of("ids", productIds);
 
     List<Map<String, Object>> prices = jdbcTemplate.query(sql, params, (rs, rowNum) -> {
       Map<String, Object> price = new LinkedHashMap<>();
 
-      int animalId = rs.getInt("animal_id");
+      int productId = rs.getInt("product_id");
       String name = rs.getString("name") + "(" + rs.getString("form") + ")";
       int centsPerUnit = rs.getInt("cents_per_unit");
 
@@ -69,7 +77,7 @@ public class CheckoutService {
         maxQuantity = maxQuantityValue;
       }
 
-      price.put("animal_id", animalId);
+      price.put("product_id", productId);
       price.put("name", name);
       price.put("cents_per_unit", centsPerUnit);
       price.put("min_quantity", minQuantity);
@@ -81,29 +89,29 @@ public class CheckoutService {
     Map<Integer, CheckoutProduct> checkoutProductMap = new LinkedHashMap<>();
 
     for (Map<String, Object> price : prices) {
-      Integer animalId = (Integer) price.get("animal_id");
+      Integer productId = (Integer) price.get("product_id");
       String name = (String) price.get("name");
       int centsPerUnit = (Integer) price.get("cents_per_unit");
       int minQuantity = (Integer) price.get("min_quantity");
 
-      CheckoutProduct checkoutProduct = checkoutProductMap.get(animalId);
+      CheckoutProduct checkoutProduct = checkoutProductMap.get(productId);
 
       if (checkoutProduct == null) {
-        Optional<CheckoutDTO> matchingProduct = checkoutDTOs.stream()
-            .filter(item -> item.getAnimalId() == animalId)
+        Optional<CheckoutDTO.Item> matchingProduct = checkoutDTO.getItems().stream()
+            .filter(item -> item.getProductId() == productId)
             .findFirst();
 
         if (matchingProduct.isEmpty()) {
-          throw new Exception("AnimalId is not found in checkoutDTOs: " + animalId);
+          throw new Exception("ProductId is not found in checkoutDTOs: " + productId);
         }
 
         int quantity = matchingProduct.get().getQuantity();
 
         checkoutProduct = new CheckoutProduct();
-        checkoutProduct.setProductId(animalId);
+        checkoutProduct.setProductId(productId);
         checkoutProduct.setName(name);
         checkoutProduct.setQuantity(quantity);
-        checkoutProductMap.put(animalId, checkoutProduct);
+        checkoutProductMap.put(productId, checkoutProduct);
       }
 
       if (checkoutProduct.getQuantity() >= minQuantity) {
@@ -117,7 +125,7 @@ public class CheckoutService {
     return checkoutProducts;
   }
 
-  public Map<String, String> createCheckoutSession(List<CheckoutDTO> checkoutDTOs) throws Exception {
+  public Map<String, String> createCheckoutSession(CheckoutDTO checkoutDTO) throws Exception {
     SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
         .setUiMode(SessionCreateParams.UiMode.CUSTOM)
         .setMode(SessionCreateParams.Mode.PAYMENT)
@@ -152,7 +160,7 @@ public class CheckoutService {
                     .build())
             .build());
 
-    List<CheckoutProduct> checkoutProducts = getProducts(checkoutDTOs);
+    List<CheckoutProduct> checkoutProducts = getProducts(checkoutDTO);
 
     for (CheckoutProduct item : checkoutProducts) {
       SessionCreateParams.LineItem lineItem = SessionCreateParams.LineItem.builder()
