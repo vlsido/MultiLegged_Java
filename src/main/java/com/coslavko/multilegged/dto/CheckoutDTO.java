@@ -4,10 +4,8 @@ package com.coslavko.multilegged.dto;
 import java.util.List;
 
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor
 public class CheckoutDTO {
   private String firstName;
   private String lastName;
