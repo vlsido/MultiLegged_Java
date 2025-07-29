@@ -9,14 +9,20 @@ import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Service;
 
 import com.coslavko.multilegged.dto.CheckoutDTO;
+import com.coslavko.multilegged.dto.CheckoutDTO.Item;
 import com.coslavko.multilegged.model.CheckoutProduct;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
+
+import jakarta.transaction.Transactional;
 
 @Service
 public class CheckoutService {
@@ -30,29 +36,110 @@ public class CheckoutService {
     this.jdbcTemplate = jdbcTemplate;
   }
 
-  public Boolean lockProducts(CheckoutDTO checkoutDTO) {
+  @Transactional
+  private void addOrder(CheckoutDTO checkoutDTO) throws Exception {
     String sql = """
-        INSERT INTO orders
+        INSERT INTO orders (first_name, last_name, phone, status)
+        VALUES (:firstName, :lastName, :phone, 'PENDING')
         """;
+
+    Map<String, Object> paramsMap = new HashMap<>();
+
+    paramsMap.put("firstName", checkoutDTO.getFirstName());
+    paramsMap.put("lastName", checkoutDTO.getLastName());
+    paramsMap.put("phone", checkoutDTO.getPhone());
+
+    KeyHolder keyHolder = new GeneratedKeyHolder();
+
+    jdbcTemplate.update(sql, new MapSqlParameterSource(paramsMap), keyHolder, new String[] { "id" });
+
+    Number generatedId = keyHolder.getKey();
+    if (generatedId == null) {
+      throw new Exception("Failed to create order");
+    }
+
+    int orderId = generatedId.intValue();
+
+    for (Item item : checkoutDTO.getItems()) {
+      String ordersProductsSql = """
+          INSERT INTO orders_products (order_id, product_id, quantity)
+          VALUES (:orderId, :productId, :quantity)
+          """;
+
+      Map<String, Object> ordersProductsParamsMap = new HashMap<>();
+
+      ordersProductsParamsMap.put("orderId", orderId);
+      ordersProductsParamsMap.put("productId", item.getProductId());
+      ordersProductsParamsMap.put("quantity", item.getQuantity());
+
+      jdbcTemplate.update(ordersProductsSql, new MapSqlParameterSource(ordersProductsParamsMap));
+    }
+  }
+
+  private boolean areCheckoutProductsAvailable(CheckoutDTO checkoutDTO) throws Exception {
+    String sql = """
+        SELECT
+          p.id
+          p.units - COALESCE(SUM(op.quantity), 0) AS available_units
+          FROM products p
+          LEFT JOIN orders_products op ON p.id = op.product_id
+          LEFT JOIN orders o ON op.order_id = o.id
+          AND o.status = 'PENDING'
+          AND o.created_at > NOW() - INTERVAL '15 minutes'
+          GROUP BY p.id
+        """;
+
+    List<Map<String, Integer>> products = jdbcTemplate.query(sql, (rs, rowNum) -> {
+      Map<String, Integer> product = new LinkedHashMap<>();
+
+      int productId = rs.getInt("id");
+      int availableUnits = rs.getInt("available_units");
+
+      product.put("productId", productId);
+      product.put("availableUnits", availableUnits);
+
+      return product;
+    });
+
+    Map<Integer, Integer> productsAvailability = new HashMap<>();
+
+    for (Map<String, Integer> product : products) {
+      productsAvailability.put(product.get("productId"), product.get("availableUnits"));
+    }
+
+    for (Item item : checkoutDTO.getItems()) {
+      int productId = item.getProductId();
+      int quantity = item.getQuantity();
+
+      Integer availableUnits = productsAvailability.get(productId);
+
+      if (availableUnits == null) {
+        throw new IllegalArgumentException("Product ID " + productId + " not found.");
+      }
+
+      if (availableUnits < quantity) {
+        throw new IllegalStateException("Not enough units for product ID " + productId);
+      }
+    }
 
     return true;
   }
 
-  public List<CheckoutProduct> getProducts(CheckoutDTO checkoutDTO) throws Exception {
+  private List<CheckoutProduct> getProducts(CheckoutDTO checkoutDTO) throws Exception {
     String sql = """
-                   SELECT
-                           a.name,
-                           a.id as product_id,
-                           ap.id as price_id,
-                           ap.cents_per_unit,
-                           ap.min_quantity,
-                           ap.max_quantity,
-                           a.units,
-                           a.form
-                   FROM product_prices ap
-                   JOIN products a ON a.id = ap.product_id
-                   WHERE a.id IN (:ids)
-                   ORDER BY price_id;
+        SELECT
+          a.name,
+          a.id as product_id,
+          ap.id as price_id,
+          ap.cents_per_unit,
+          ap.min_quantity,
+          ap.max_quantity,
+          a.units,
+          a.form
+          FROM product_prices ap
+          JOIN products a ON a.id = ap.product_id
+          WHERE a.id IN (:ids)
+          ORDER BY price_id;
         """;
 
     List<Integer> productIds = checkoutDTO.getItems().stream()

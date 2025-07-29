@@ -52,7 +52,7 @@ public class ProductsService {
 
       while (rs.next()) {
         String categoryName = rs.getString("category_name");
-        Integer speciesId = rs.getInt("product_id");
+        int productId = rs.getInt("product_id");
 
         ProductCategory category = categoryMap.computeIfAbsent(categoryName, c -> {
           ProductCategory aCategory = new ProductCategory();
@@ -62,7 +62,7 @@ public class ProductsService {
           return aCategory;
         });
 
-        Product product = productMap.computeIfAbsent(speciesId, id -> {
+        Product product = productMap.computeIfAbsent(productId, id -> {
           try {
             Product a = new Product();
             a.setId(id);
@@ -79,7 +79,7 @@ public class ProductsService {
 
             return a;
           } catch (SQLException e) {
-            throw new RuntimeException("Failed to map species from result set", e);
+            throw new RuntimeException("Failed to map product from result set", e);
           }
         });
 
