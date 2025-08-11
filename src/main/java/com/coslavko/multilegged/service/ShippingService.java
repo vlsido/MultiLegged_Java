@@ -10,8 +10,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import com.coslavko.multilegged.dto.ShippingLocationsDTO;
-import com.coslavko.multilegged.dto.ShippingLocationsDTO.Location;
+import com.coslavko.multilegged.dto.ShippingLocationsResponse;
+import com.coslavko.multilegged.dto.ShippingLocationsResponse.Location;
 
 @Service
 public class ShippingService {
@@ -22,8 +22,8 @@ public class ShippingService {
     this.restTemplate = restTemplate;
   }
 
-  public List<ShippingLocationsDTO> getShippingLocations() {
-    List<ShippingLocationsDTO> result = new ArrayList<>();
+  public List<ShippingLocationsResponse> getShippingLocations() {
+    List<ShippingLocationsResponse> result = new ArrayList<>();
 
     List<Map<String, Object>> dpdRaw = fetchData("https://dpdbaltics.com/PickupParcelShopData.json");
     result.add(parseDPD(dpdRaw));
@@ -34,12 +34,12 @@ public class ShippingService {
     return result;
   }
 
-  private ShippingLocationsDTO parseDPD(List<Map<String, Object>> raw) {
-    ShippingLocationsDTO dto = new ShippingLocationsDTO();
+  private ShippingLocationsResponse parseDPD(List<Map<String, Object>> raw) {
+    ShippingLocationsResponse dto = new ShippingLocationsResponse();
     dto.setCompanyName("DPD");
 
     List<Location> locations = raw.stream().map(item -> {
-      ShippingLocationsDTO.Location location = new ShippingLocationsDTO.Location();
+      ShippingLocationsResponse.Location location = new ShippingLocationsResponse.Location();
       location.setName((String) item.get("companyName"));
       location.setCountryCode((String) item.get("countryCode"));
       return location;
@@ -53,12 +53,12 @@ public class ShippingService {
     return dto;
   }
 
-  private ShippingLocationsDTO parseOmniva(List<Map<String, Object>> raw) {
-    ShippingLocationsDTO dto = new ShippingLocationsDTO();
+  private ShippingLocationsResponse parseOmniva(List<Map<String, Object>> raw) {
+    ShippingLocationsResponse dto = new ShippingLocationsResponse();
     dto.setCompanyName("Omniva");
 
     List<Location> locations = raw.stream().map(item -> {
-      ShippingLocationsDTO.Location location = new ShippingLocationsDTO.Location();
+      ShippingLocationsResponse.Location location = new ShippingLocationsResponse.Location();
       location.setName((String) item.get("NAME"));
       location.setCountryCode((String) item.get("A0_NAME"));
       return location;

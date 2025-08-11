@@ -6,7 +6,7 @@ import java.util.List;
 import lombok.Data;
 
 @Data
-public class CheckoutDTO {
+public class CheckoutRequest {
   private String firstName;
   private String lastName;
   private String phone;

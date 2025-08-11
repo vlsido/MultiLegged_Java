@@ -15,8 +15,8 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Service;
 
-import com.coslavko.multilegged.dto.CheckoutDTO;
-import com.coslavko.multilegged.dto.CheckoutDTO.Item;
+import com.coslavko.multilegged.dto.CheckoutRequest;
+import com.coslavko.multilegged.dto.CheckoutRequest.Item;
 import com.coslavko.multilegged.model.CheckoutProduct;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
@@ -37,7 +37,7 @@ public class CheckoutService {
   }
 
   @Transactional
-  private void addOrder(CheckoutDTO checkoutDTO) throws Exception {
+  private void addOrder(CheckoutRequest req) throws Exception {
     String sql = """
         INSERT INTO orders (first_name, last_name, phone, status)
         VALUES (:firstName, :lastName, :phone, 'PENDING')
@@ -45,9 +45,9 @@ public class CheckoutService {
 
     Map<String, Object> paramsMap = new HashMap<>();
 
-    paramsMap.put("firstName", checkoutDTO.getFirstName());
-    paramsMap.put("lastName", checkoutDTO.getLastName());
-    paramsMap.put("phone", checkoutDTO.getPhone());
+    paramsMap.put("firstName", req.getFirstName());
+    paramsMap.put("lastName", req.getLastName());
+    paramsMap.put("phone", req.getPhone());
 
     KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -60,7 +60,7 @@ public class CheckoutService {
 
     int orderId = generatedId.intValue();
 
-    for (Item item : checkoutDTO.getItems()) {
+    for (Item item : req.getItems()) {
       String ordersProductsSql = """
           INSERT INTO orders_products (order_id, product_id, quantity)
           VALUES (:orderId, :productId, :quantity)
@@ -76,7 +76,7 @@ public class CheckoutService {
     }
   }
 
-  private boolean areCheckoutProductsAvailable(CheckoutDTO checkoutDTO) throws Exception {
+  private boolean areCheckoutProductsAvailable(CheckoutRequest req) throws Exception {
     String sql = """
         SELECT
           p.id
@@ -107,7 +107,7 @@ public class CheckoutService {
       productsAvailability.put(product.get("productId"), product.get("availableUnits"));
     }
 
-    for (Item item : checkoutDTO.getItems()) {
+    for (Item item : req.getItems()) {
       int productId = item.getProductId();
       int quantity = item.getQuantity();
 
@@ -125,7 +125,7 @@ public class CheckoutService {
     return true;
   }
 
-  private List<CheckoutProduct> getProducts(CheckoutDTO checkoutDTO) throws Exception {
+  private List<CheckoutProduct> getProducts(CheckoutRequest req) throws Exception {
     String sql = """
         SELECT
           a.name,
@@ -142,8 +142,8 @@ public class CheckoutService {
           ORDER BY price_id;
         """;
 
-    List<Integer> productIds = checkoutDTO.getItems().stream()
-        .map(CheckoutDTO.Item::getProductId)
+    List<Integer> productIds = req.getItems().stream()
+        .map(CheckoutRequest.Item::getProductId)
         .distinct()
         .toList();
 
@@ -184,12 +184,12 @@ public class CheckoutService {
       CheckoutProduct checkoutProduct = checkoutProductMap.get(productId);
 
       if (checkoutProduct == null) {
-        Optional<CheckoutDTO.Item> matchingProduct = checkoutDTO.getItems().stream()
+        Optional<CheckoutRequest.Item> matchingProduct = req.getItems().stream()
             .filter(item -> item.getProductId() == productId)
             .findFirst();
 
         if (matchingProduct.isEmpty()) {
-          throw new Exception("ProductId is not found in checkoutDTOs: " + productId);
+          throw new Exception("ProductId is not found in checkout reqest: " + productId);
         }
 
         int quantity = matchingProduct.get().getQuantity();
@@ -212,7 +212,7 @@ public class CheckoutService {
     return checkoutProducts;
   }
 
-  public Map<String, String> createCheckoutSession(CheckoutDTO checkoutDTO) throws Exception {
+  public Map<String, String> createCheckoutSession(CheckoutRequest req) throws Exception {
     SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
         .setUiMode(SessionCreateParams.UiMode.CUSTOM)
         .setMode(SessionCreateParams.Mode.PAYMENT)
@@ -247,7 +247,7 @@ public class CheckoutService {
                     .build())
             .build());
 
-    List<CheckoutProduct> checkoutProducts = getProducts(checkoutDTO);
+    List<CheckoutProduct> checkoutProducts = getProducts(req);
 
     for (CheckoutProduct item : checkoutProducts) {
       SessionCreateParams.LineItem lineItem = SessionCreateParams.LineItem.builder()

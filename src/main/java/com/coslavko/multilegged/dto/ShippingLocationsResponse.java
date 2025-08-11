@@ -5,7 +5,7 @@ import java.util.List;
 import lombok.Data;
 
 @Data
-public class ShippingLocationsDTO {
+public class ShippingLocationsResponse {
   private String companyName;
   private List<Location> locations;
 

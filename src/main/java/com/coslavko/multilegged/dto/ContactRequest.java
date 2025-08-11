@@ -1,11 +1,9 @@
 package com.coslavko.multilegged.dto;
 
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor
-public class ContactDTO {
+public class ContactRequest {
   private String name;
   private String email;
   private String subject;
