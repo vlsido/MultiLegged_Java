@@ -1,11 +1,7 @@
 package com.coslavko.multilegged.dto;
 
-import lombok.Data;
-
-@Data
-public class ContactRequest {
-  private String name;
-  private String email;
-  private String subject;
-  private String message;
+public record ContactRequest(String name,
+    String email,
+    String subject,
+    String message) {
 }
