@@ -45,9 +45,9 @@ public class CheckoutService {
 
     Map<String, Object> paramsMap = new HashMap<>();
 
-    paramsMap.put("firstName", req.getFirstName());
-    paramsMap.put("lastName", req.getLastName());
-    paramsMap.put("phone", req.getPhone());
+    paramsMap.put("firstName", req.firstName());
+    paramsMap.put("lastName", req.lastName());
+    paramsMap.put("phone", req.phone());
 
     KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -60,7 +60,7 @@ public class CheckoutService {
 
     int orderId = generatedId.intValue();
 
-    for (Item item : req.getItems()) {
+    for (Item item : req.items()) {
       String ordersProductsSql = """
           INSERT INTO orders_products (order_id, product_id, quantity)
           VALUES (:orderId, :productId, :quantity)
@@ -69,8 +69,8 @@ public class CheckoutService {
       Map<String, Object> ordersProductsParamsMap = new HashMap<>();
 
       ordersProductsParamsMap.put("orderId", orderId);
-      ordersProductsParamsMap.put("productId", item.getProductId());
-      ordersProductsParamsMap.put("quantity", item.getQuantity());
+      ordersProductsParamsMap.put("productId", item.productId());
+      ordersProductsParamsMap.put("quantity", item.quantity());
 
       jdbcTemplate.update(ordersProductsSql, new MapSqlParameterSource(ordersProductsParamsMap));
     }
@@ -107,9 +107,9 @@ public class CheckoutService {
       productsAvailability.put(product.get("productId"), product.get("availableUnits"));
     }
 
-    for (Item item : req.getItems()) {
-      int productId = item.getProductId();
-      int quantity = item.getQuantity();
+    for (Item item : req.items()) {
+      int productId = item.productId();
+      int quantity = item.quantity();
 
       Integer availableUnits = productsAvailability.get(productId);
 
@@ -142,8 +142,8 @@ public class CheckoutService {
           ORDER BY price_id;
         """;
 
-    List<Integer> productIds = req.getItems().stream()
-        .map(CheckoutRequest.Item::getProductId)
+    List<Integer> productIds = req.items().stream()
+        .map(CheckoutRequest.Item::productId)
         .distinct()
         .toList();
 
@@ -184,15 +184,15 @@ public class CheckoutService {
       CheckoutProduct checkoutProduct = checkoutProductMap.get(productId);
 
       if (checkoutProduct == null) {
-        Optional<CheckoutRequest.Item> matchingProduct = req.getItems().stream()
-            .filter(item -> item.getProductId() == productId)
+        Optional<CheckoutRequest.Item> matchingProduct = req.items().stream()
+            .filter(item -> item.productId() == productId)
             .findFirst();
 
         if (matchingProduct.isEmpty()) {
           throw new Exception("ProductId is not found in checkout reqest: " + productId);
         }
 
-        int quantity = matchingProduct.get().getQuantity();
+        int quantity = matchingProduct.get().quantity();
 
         checkoutProduct = new CheckoutProduct();
         checkoutProduct.setProductId(productId);
