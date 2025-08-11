@@ -2,16 +2,11 @@ package com.coslavko.multilegged.dto;
 
 import java.util.List;
 
-import lombok.Data;
-
-@Data
-public class ShippingLocationsResponse {
-  private String companyName;
-  private List<Location> locations;
-
-  @Data
-  public static class Location {
-    private String name;
-    private String countryCode;
+public record ShippingLocationsResponse(
+    String companyName,
+    List<Location> locations) {
+  public record Location(
+      String name,
+      String countryCode) {
   }
 }

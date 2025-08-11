@@ -35,38 +35,24 @@ public class ShippingService {
   }
 
   private ShippingLocationsResponse parseDPD(List<Map<String, Object>> raw) {
-    ShippingLocationsResponse dto = new ShippingLocationsResponse();
-    dto.setCompanyName("DPD");
+    List<Location> locations = raw.stream().map(item -> new ShippingLocationsResponse.Location(
+        (String) item.get("companyName"),
+        (String) item.get("countryCode"))).sorted(Comparator.comparing(location -> {
+          String[] parts = location.name().split("\\s+");
+          return parts.length > 1 ? parts[1] : "";
+        })).toList();
 
-    List<Location> locations = raw.stream().map(item -> {
-      ShippingLocationsResponse.Location location = new ShippingLocationsResponse.Location();
-      location.setName((String) item.get("companyName"));
-      location.setCountryCode((String) item.get("countryCode"));
-      return location;
-    }).sorted(Comparator.comparing(location -> {
-      String[] parts = location.getName().split("\\s+");
-      return parts.length > 1 ? parts[1] : "";
-    })).toList();
-
-    dto.setLocations(locations);
-
-    return dto;
+    return new ShippingLocationsResponse("DPD", locations);
   }
 
   private ShippingLocationsResponse parseOmniva(List<Map<String, Object>> raw) {
-    ShippingLocationsResponse dto = new ShippingLocationsResponse();
-    dto.setCompanyName("Omniva");
+    List<ShippingLocationsResponse.Location> locations = raw.stream()
+        .map(item -> new ShippingLocationsResponse.Location(
+            (String) item.get("NAME"),
+            (String) item.get("A0_NAME")))
+        .toList();
 
-    List<Location> locations = raw.stream().map(item -> {
-      ShippingLocationsResponse.Location location = new ShippingLocationsResponse.Location();
-      location.setName((String) item.get("NAME"));
-      location.setCountryCode((String) item.get("A0_NAME"));
-      return location;
-    }).toList();
-
-    dto.setLocations(locations);
-
-    return dto;
+    return new ShippingLocationsResponse("Omniva", locations);
   }
 
   private List<Map<String, Object>> fetchData(String url) {
